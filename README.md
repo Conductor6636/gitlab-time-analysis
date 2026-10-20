@@ -68,6 +68,7 @@ The application reads configuration from environment variables. In a local setup
 | `PROJECT_END_DATE`        | Yes      | End date used for fetching timelogs and generating sprint windows.                                                             |
 | `SPRINT_START_WEEKDAY`    | No       | Sprint start weekday. Accepts a weekday name or numeric day index. Defaults to the weekday of `PROJECT_START_DATE` if omitted. |
 | `SPRINT_DURATION_WEEKS`   | No       | Sprint length in weeks. Defaults to `1` when omitted in sprint calculations.                                                   |
+| `GITLAB_DISPLAY_NAMES`    | No       | JSON object mapping GitLab usernames to display names. Matching is case-insensitive.                                             |
 
 Optional personalization tokens (stored in the browser and passed via headers):
 
@@ -86,6 +87,7 @@ PROJECT_START_DATE=2025-01-01
 PROJECT_END_DATE=2025-12-31
 SPRINT_START_WEEKDAY=Monday
 SPRINT_DURATION_WEEKS=2
+GITLAB_DISPLAY_NAMES='{"gitlab-nickname":"Display Name"}'
 ```
 
 ## Getting Started

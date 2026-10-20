@@ -1,7 +1,7 @@
 import { apolloClient, gql } from "./apollo-client";
 import { CACHE_TTL_MS, groupCaches, getOrCreateGroupCache, getCacheKey, mergeRequestsStore, registerUser, cleanupOrphanedEntities } from "./cache-core";
 import type { NormalizedMergeRequest, MergeRequestComment } from "./cache-types";
-import { GITLAB_GROUP_PATH } from "./env";
+import { GITLAB_GROUP_PATH, getDisplayName } from "./env";
 
 const MERGE_REQUESTS_QUERY = gql`
   query GetGroupMergeRequests($fullPath: ID!, $after: String) {
@@ -105,7 +105,7 @@ async function fetchAndProcessMergeRequests(
             system: !!note.system,
             author: {
               username: note.author.username,
-              name: note.author.name || "",
+              name: getDisplayName(note.author.username, note.author.name || ""),
               avatarUrl: note.author.avatarUrl || null,
             },
           });

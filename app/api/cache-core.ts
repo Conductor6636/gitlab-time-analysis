@@ -1,4 +1,4 @@
-import { GITLAB_DOMAIN, GITLAB_GROUP_PATH, PROJECT_START_DATE, SPRINT_DURATION_WEEKS, SPRINT_START_WEEKDAY } from "./env";
+import { GITLAB_DOMAIN, GITLAB_GROUP_PATH, PROJECT_START_DATE, SPRINT_DURATION_WEEKS, SPRINT_START_WEEKDAY, getDisplayName } from "./env";
 import type { NormalizedUser, NormalizedIssue, NormalizedTimelog, NormalizedMergeRequest, GroupCacheEntry, DescendantGroup } from "./cache-types";
 
 export const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
@@ -61,7 +61,7 @@ export function registerUser(userNode: any): string {
   const username = userNode.username;
   usersStore.set(username, {
     username,
-    name: userNode.name || "",
+    name: getDisplayName(username, userNode.name || ""),
     webUrl: userNode.webUrl || "",
     bot: !!userNode.bot,
     avatarUrl: normalizeAvatarUrl(userNode.avatarUrl || null),
