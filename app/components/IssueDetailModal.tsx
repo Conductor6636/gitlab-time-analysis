@@ -27,6 +27,7 @@ import {
 import { Close, OpenInNew, Edit, Save, Label as LabelIcon } from "@mui/icons-material";
 import { GroupContext } from "../GroupContext";
 import { useUserAuth } from "../UserAuthContext";
+import { updateGitLabIssue, updateGitLabIssueLabels } from "../gitlab/client";
 import { UserAvatar } from "./UserAvatar";
 import Label from "./Label";
 
@@ -98,22 +99,8 @@ export default function IssueDetailModal({
     setUpdatingState(true);
     try {
       const nextEvent = issueState === "opened" ? "close" : "reopen";
-      const response = await fetch("/api/issues/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          issueUrl,
-          state_event: nextEvent,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to update state");
-      }
+      if (!token) throw new Error("Sign in with GitLab to edit issues");
+      await updateGitLabIssue(token, issueUrl, { stateEvent: nextEvent });
 
       if (refreshData) {
         refreshData();
@@ -136,22 +123,8 @@ export default function IssueDetailModal({
         estimateVal = Math.round(hours * 3600); // convert to seconds
       }
 
-      const response = await fetch("/api/issues/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          issueUrl,
-          estimate: estimateVal,
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to update estimate");
-      }
+      if (!token) throw new Error("Sign in with GitLab to edit issues");
+      await updateGitLabIssue(token, issueUrl, { estimate: estimateVal });
 
       setIsEditingEstimate(false);
       if (refreshData) {
@@ -168,50 +141,8 @@ export default function IssueDetailModal({
     setSavingLabels(true);
     setLabelError(null);
     try {
-      const response = await fetch("/api/issues/update-labels", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          issueUrl,
-          // Extract title/name from the custom format (removing group prefixes if necessary)
-          // GitLab REST API expects label titles. E.g. if our label ID is "Category::Frontend",
-          // it might need to match GitLab's label name.
-          // Wait, in timelogs/route.ts, labels are mapped back to:
-          // title.includes("::") ? title : title.includes(":") ? title.replace(/:/g, "::") : "Ungrouped::" + title
-          // Let's retrieve the original label title.
-          labels: selectedLabels.map(l => {
-            // Find in groupLabelsMap if possible
-            if (groupLabelsMap) {
-              const found = Object.values(groupLabelsMap)
-                .flat()
-                .find(g => g.id === l);
-              if (found) {
-                // If it is in the group labels, let's reassemble the original GitLab label name:
-                // If the group is "Ungrouped", the original title is just found.title.
-                // Otherwise, the original title is group + "::" + found.title (or group + ":" + found.title).
-                // Wait! In labels/route.ts:
-                // title is title.split("::").slice(1).join("::") or title.split(":").slice(1).join(":")
-                // group is the prefix.
-                // So the full label name is group + "::" + title (or original title).
-                // Actually, let's look at getLabels:
-                // id: group + "::" + title
-                // So the id is EXACTLY the title in GitLab because in GitLab, nested labels look like "Category::Frontend".
-                // So the ID is the original label title!
-                return l;
-              }
-            }
-            return l;
-          }),
-        }),
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to update labels");
-      }
+      if (!token) throw new Error("Sign in with GitLab to edit issues");
+      await updateGitLabIssueLabels(token, issueUrl, selectedLabels);
 
       // Success
       setIsEditingLabels(false);

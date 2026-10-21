@@ -12,7 +12,7 @@ import {
 import { UserAvatar } from "./UserAvatar";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
-import type { GroupTimelogsResponse, GroupSprintsResponse } from "../api/group/types";
+import type { GroupTimelogsResponse, GroupSprintsResponse } from "../types/group";
 import { useUserProfile } from "../UserProfileContext";
 
 const getTopCategoryForSprint = (

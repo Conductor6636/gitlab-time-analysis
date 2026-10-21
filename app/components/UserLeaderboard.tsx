@@ -21,10 +21,15 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 import { CATEGORY_DEFINITIONS } from "@/app/config/categories";
-import type { UserLeaderboardResponse, UserLeaderboardEntry, CategoryEntry } from "@/app/api/users/leaderboard/route";
+import type {
+  UserLeaderboardResponse,
+  UserLeaderboardEntry,
+  CategoryEntry,
+} from "@/app/types/analytics";
 import { useUserAuth } from "../UserAuthContext";
 import { useThemeMode } from "../ThemeContext";
 import { useUserProfile } from "../UserProfileContext";
+import { loadUserLeaderboard } from "../gitlab/client";
 
 const PALETTE = [
   "#8884d8",
@@ -409,16 +414,17 @@ export function UserLeaderboard() {
     if (authLoading) return;
     let cancelled = false;
     const fetchData = async () => {
+      setData(null);
+      setLoading(true);
+      if (!token) {
+        setError("Sign in with GitLab to load the user leaderboard.");
+        setLoading(false);
+        return;
+      }
       try {
-        setLoading(true);
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-        const res = await fetch("/api/users/leaderboard", { headers });
-        if (!res.ok) throw new Error(`Failed to load: ${res.statusText}`);
-        const json = await res.json();
-        if (!cancelled) setData(json);
+        setError(null);
+        const result = await loadUserLeaderboard(token);
+        if (!cancelled) setData(result);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Unknown error");
       } finally {

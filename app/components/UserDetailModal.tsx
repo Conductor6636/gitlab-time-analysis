@@ -29,6 +29,7 @@ import { useTheme } from "@mui/material";
 import { useThemeMode } from "../ThemeContext";
 import { computeGamification, xpNeededForLevel } from "../utils/gamification";
 import { useUserAuth } from "../UserAuthContext";
+import { loadUserProfile } from "../gitlab/client";
 
 const PALETTE = [
   "#8884d8",
@@ -68,15 +69,9 @@ export default function UserDetailModal({
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [profileData, setProfileData] = useState<{
-    member: any;
-    timelogs: any[];
-    allTimelogsForGamification: any[];
-    allMergeRequestsForGamification?: any[];
-    sprints: any[];
-    validatedTeammates?: string[];
-    groupSharePercent?: number;
-  } | null>(null);
+  const [profileData, setProfileData] = useState<
+    Awaited<ReturnType<typeof loadUserProfile>> | null
+  >(null);
 
   // Fetch independent profile data when username changes
   useEffect(() => {
@@ -84,28 +79,32 @@ export default function UserDetailModal({
 
     setLoading(true);
     setError(null);
+    setProfileData(null);
     setActiveTab(0);
+    let active = true;
 
     const fetchUserProfile = async () => {
-      try {
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-        const res = await fetch(`/api/users/${username}`, { headers });
-        if (!res.ok) {
-          throw new Error(`Failed to load profile: ${res.statusText}`);
-        }
-        const data = await res.json();
-        setProfileData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
+      if (!token) {
+        setError("Sign in with GitLab to load user profiles.");
         setLoading(false);
+        return;
+      }
+      try {
+        const data = await loadUserProfile(token, username);
+        if (active) setProfileData(data);
+      } catch (err) {
+        if (active) {
+          setError(err instanceof Error ? err.message : "An error occurred");
+        }
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
-    fetchUserProfile();
+    void fetchUserProfile();
+    return () => {
+      active = false;
+    };
   }, [username, open, token]);
 
   // Find user details from fetched profile data

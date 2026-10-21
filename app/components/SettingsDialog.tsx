@@ -1,29 +1,27 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import { Login, Logout, Palette } from "@mui/icons-material";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Typography,
-  Box,
-  IconButton,
-  InputAdornment,
-  CircularProgress,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  FormControl,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Select,
+  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Lock, Palette } from "@mui/icons-material";
-import { useUserAuth } from "../UserAuthContext";
+import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useThemeMode } from "../ThemeContext";
+import { useUserAuth } from "../UserAuthContext";
 
 type SettingsDialogProps = {
   open: boolean;
@@ -33,12 +31,10 @@ type SettingsDialogProps = {
 export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
-  const { token: currentToken, login, logout } = useUserAuth();
+  const { user, login, logout } = useUserAuth();
   const { colorTheme, setColorTheme } = useThemeMode();
-  
-  const [tokenInput, setTokenInput] = useState(currentToken || "");
+
   const [themeInput, setThemeInput] = useState(colorTheme);
-  const [showToken, setShowToken] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -47,13 +43,23 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
   useEffect(() => {
     if (open) {
       setThemeInput(colorTheme);
-      setTokenInput(currentToken || "");
       setError(null);
       setSuccess(false);
     }
-  }, [open, colorTheme, currentToken]);
+  }, [open, colorTheme]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleLogin = async () => {
+    setError(null);
+    try {
+      await login();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to start GitLab login",
+      );
+    }
+  };
+
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
 
     setLoading(true);
@@ -61,46 +67,36 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
     setSuccess(false);
 
     try {
-      const trimmedToken = tokenInput.trim();
-      let tokenChanged = trimmedToken !== (currentToken || "");
-
-      if (tokenChanged) {
-        if (trimmedToken) {
-          await login(trimmedToken);
-        } else {
-          logout();
-        }
-      }
-
-      // Save theme preset
       setColorTheme(themeInput);
       setSuccess(true);
-      
-      // If the page will reload because of login/logout, don't trigger onClose manual redirect
-      if (!tokenChanged) {
-        setTimeout(() => {
-          onClose();
-        }, 800);
-      }
+      window.setTimeout(onClose, 800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to verify token");
+      setError(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullScreen={fullScreen} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
-        Settings
-      </DialogTitle>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullScreen={fullScreen}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>Settings</DialogTitle>
       <form onSubmit={handleSave}>
         <DialogContent>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: "primary.main" }}>
+          <Typography
+            variant="subtitle2"
+            sx={{ fontWeight: 700, mb: 1, color: "primary.main" }}
+          >
             GitLab Authentication
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Adding your GitLab Personal Access Token enables interactive features (such as modifying issue labels) and fetches group data using your personal GitLab permissions. The token is stored locally in your browser.
+            Sign in with GitLab to authorize access to your account. Your OAuth
+            session is kept in this browser tab.
           </Typography>
 
           {error && (
@@ -116,59 +112,78 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
           )}
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-            <TextField
-              label="GitLab Private Access Token"
-              variant="outlined"
-              fullWidth
-              disabled={loading}
-              type={showToken ? "text" : "password"}
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="glpat-..."
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Lock fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle token visibility"
-                        onClick={() => setShowToken(!showToken)}
-                        edge="end"
-                        size="small"
-                        disabled={loading}
-                      >
-                        {showToken ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }
-              }}
-            />
+            {user ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 2,
+                }}
+              >
+                <Typography variant="body2">
+                  Signed in as <strong>{user.username}</strong>
+                </Typography>
+                <Button
+                  color="inherit"
+                  startIcon={<Logout />}
+                  onClick={logout}
+                  disabled={loading}
+                >
+                  Sign out
+                </Button>
+              </Box>
+            ) : (
+              <Button
+                variant="outlined"
+                startIcon={<Login />}
+                onClick={handleLogin}
+                disabled={loading}
+              >
+                Sign in with GitLab
+              </Button>
+            )}
 
             <Divider sx={{ my: 1.5 }} />
 
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main" }}>
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: 700, color: "primary.main" }}
+            >
               Appearance Accent Theme
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Choose a color theme preset that adjusts core app accents and category colors.
+              Choose a color theme preset that adjusts core app accents and
+              category colors.
             </Typography>
 
             <FormControl fullWidth disabled={loading}>
-              <InputLabel id="theme-select-label">Color Theme Preset</InputLabel>
+              <InputLabel id="theme-select-label">
+                Color Theme Preset
+              </InputLabel>
               <Select
                 labelId="theme-select-label"
                 id="theme-select"
                 value={themeInput}
                 label="Color Theme Preset"
-                onChange={(e) => setThemeInput(e.target.value as any)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (
+                    value === "default" ||
+                    value === "dhbw" ||
+                    value === "green" ||
+                    value === "purple"
+                  ) {
+                    setThemeInput(value);
+                  }
+                }}
                 startAdornment={
                   <InputAdornment position="start">
-                    <Palette fontSize="small" color="action" style={{ marginRight: 8 }} />
+                    <Palette
+                      fontSize="small"
+                      color="action"
+                      style={{ marginRight: 8 }}
+                    />
                   </InputAdornment>
                 }
               >
@@ -190,7 +205,7 @@ export default function SettingsDialog({ open, onClose }: SettingsDialogProps) {
             disabled={loading}
             sx={{ minWidth: 100 }}
           >
-            {loading ? <CircularProgress size={24} /> : "Save Settings"}
+            Save Settings
           </Button>
         </DialogActions>
       </form>

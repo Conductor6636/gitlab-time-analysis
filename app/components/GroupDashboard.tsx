@@ -2,6 +2,7 @@
 
 import {
   Box,
+  Alert,
   Card,
   CardContent,
   FormControl,
@@ -23,13 +24,11 @@ import {
   Breadcrumbs,
   Chip,
 } from "@mui/material";
-import NextLink from "next/link";
 import ReportProblemIcon from "@mui/icons-material/ReportProblem";
 import TvIcon from "@mui/icons-material/Tv";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import Group from "@mui/icons-material/Group";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import { useParams } from "next/navigation";
 import React from "react";
 import { useUserAuth } from "../UserAuthContext";
 import { useThemeMode } from "../ThemeContext";
@@ -38,21 +37,21 @@ import type {
   GroupMembersResponse,
   GroupSprintsResponse,
   GroupTimelogsResponse,
-} from "../api/group/types";
-import type { GroupResponse } from "../api/groups/route";
-import EstimateAccuracy from "../components/EstimateAccuracy";
-import HeaderCards from "../components/HeaderCards";
-import Heatmap from "../components/Heatmap";
-import ProblemsModal from "../components/ProblemsModal";
-import SprintOverview from "../components/SprintOverview";
-import SprintRadar from "../components/SprintRadar";
-import StaleIndicator from "../components/StaleIndicator";
-import TimePerCategory from "../components/TimePerCategory";
-import TimePerMember from "../components/TimePerMember";
-import TimePerSprintMember from "../components/TimePerSprintMember";
-import TimePerWeek from "../components/TimePerWeek";
-import TimePerWeekday from "../components/TimePerWeekday";
-import UserDetailModal from "../components/UserDetailModal";
+} from "../types/group";
+import type { GroupResponse } from "../types/analytics";
+import EstimateAccuracy from "./EstimateAccuracy";
+import HeaderCards from "./HeaderCards";
+import Heatmap from "./Heatmap";
+import ProblemsModal from "./ProblemsModal";
+import SprintOverview from "./SprintOverview";
+import SprintRadar from "./SprintRadar";
+import StaleIndicator from "./StaleIndicator";
+import TimePerCategory from "./TimePerCategory";
+import TimePerMember from "./TimePerMember";
+import TimePerSprintMember from "./TimePerSprintMember";
+import TimePerWeek from "./TimePerWeek";
+import TimePerWeekday from "./TimePerWeekday";
+import UserDetailModal from "./UserDetailModal";
 import { GroupContext } from "../GroupContext";
 import { useUserProfile } from "../UserProfileContext";
 import { GamificationMergeRequest, computeLevelInfo, computeGamification, TIER_INFO, xpNeededForLevel } from "../utils/gamification";
@@ -73,43 +72,21 @@ import {
 } from "recharts";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
-import { UserAvatar } from "../components/UserAvatar";
+import { UserAvatar } from "./UserAvatar";
+import { groupRouteHref, handleGroupRouteClick } from "../ClientRoute";
+import {
+  clearGitLabClientCache,
+  getGroups,
+  loadGroupData,
+} from "../gitlab/client";
 
-const clientCache = new Map<string, { data: any; ts: number }>();
-const CLIENT_CACHE_TTL = 60000;
-
-function clearClientCache() {
-  clientCache.clear();
-}
-
-async function fetchJson(url: string, headers?: Record<string, string>) {
-  const cacheKey = url;
-  const cached = clientCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CLIENT_CACHE_TTL) {
-    return cached.data;
-  }
-  const res = await fetch(url, { headers });
-  const data = await res.json();
-  const cacheTimestamp = Number(res.headers.get("x-cache-timestamp")) || Date.now();
-  const result = { data, cacheTimestamp };
-  clientCache.set(cacheKey, { data: result, ts: Date.now() });
-  return result;
-}
-
-export default function GroupPage() {
+export default function GroupDashboard({ groupId }: { groupId: string }) {
   const theme = useTheme();
   const { presentationMode, setPresentationMode } = useThemeMode();
-  const { groupId } = useParams();
-  const groupIdStr = Array.isArray(groupId) ? groupId.join("/") : (groupId?.toString() || "");
+  const groupIdStr = groupId;
   const { token, loading: authLoading } = useUserAuth();
 
   const [allGroups, setAllGroups] = React.useState<GroupResponse>([]);
-  React.useEffect(() => {
-    fetch("/api/groups")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setAllGroups(data))
-      .catch(() => {});
-  }, []);
 
   const currentGroupInfo = allGroups.find((g) => g.id === groupIdStr);
   const childSubgroups = allGroups.filter((g) => g.parentId === groupIdStr);
@@ -141,9 +118,34 @@ export default function GroupPage() {
   const [sprints, setSprints] = React.useState<GroupSprintsResponse>([]);
   const [mergeRequests, setMergeRequests] = React.useState<GamificationMergeRequest[]>([]);
   const [lastFetchedAt, setLastFetchedAt] = React.useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [dataError, setDataError] = React.useState<string | null>(null);
   const [selectedSprint, setSelectedSprint] = React.useState<number | null>(null);
   const [showProblems, setShowProblems] = React.useState(false);
   const { profileUsername, closeProfile } = useUserProfile();
+
+  React.useEffect(() => {
+    if (authLoading || !token) {
+      setAllGroups([]);
+      return;
+    }
+    let active = true;
+    getGroups(token)
+      .then(({ data }) => {
+        if (active) setAllGroups(data);
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to load GitLab groups:", error);
+        if (active) {
+          setDataError(
+            error instanceof Error ? error.message : "Failed to load GitLab groups",
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, authLoading]);
 
   const togglePresentationMode = () => {
     if (!presentationMode) {
@@ -173,39 +175,36 @@ export default function GroupPage() {
 
   const fetchAllData = React.useCallback(async () => {
     if (authLoading) return;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+    if (!token) {
+      setDataError("Sign in with GitLab to load group analytics.");
+      setIsLoading(false);
+      return;
     }
-    const [
-      { data: membersData, cacheTimestamp: membersTs },
-      { data: labelsData, cacheTimestamp: labelsTs },
-      { data: timelogsData, cacheTimestamp: timelogsTs },
-      { data: sprintsData, cacheTimestamp: sprintsTs },
-      { data: mergeRequestsData, cacheTimestamp: mergeRequestsTs },
-    ] = await Promise.all([
-      fetchJson(`/api/group/${groupIdStr}/members`, headers),
-      fetchJson(`/api/group/${groupIdStr}/labels`, headers),
-      fetchJson(`/api/group/${groupIdStr}/timelogs`, headers),
-      fetchJson(`/api/group/${groupIdStr}/sprints`, headers),
-      fetchJson(`/api/group/${groupIdStr}/merge-requests`, headers),
-    ]);
-    setMembers(membersData);
-    setLabels(labelsData);
-    setTimelogs(timelogsData);
-    setSprints(sprintsData);
-    setMergeRequests(mergeRequestsData);
-    setLastFetchedAt({
-      members: membersTs,
-      labels: labelsTs,
-      timelogs: timelogsTs,
-      sprints: sprintsTs,
-      mergeRequests: mergeRequestsTs,
-    });
+    setIsLoading(true);
+    setDataError(null);
+    try {
+      const { data } = await loadGroupData(token, groupIdStr);
+      setMembers(data.members);
+      setLabels(data.labels);
+      setTimelogs(data.timelogs);
+      setSprints(data.sprints);
+      setMergeRequests(data.mergeRequests);
+      setLastFetchedAt(data.timestamps);
+      setAllGroups(data.groups);
+    } catch (error) {
+      console.error("Failed to load GitLab group analytics:", error);
+      setDataError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load GitLab group analytics",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, [groupIdStr, token, authLoading]);
 
   const refreshData = React.useCallback(() => {
-    clearClientCache();
+    clearGitLabClientCache();
     fetchAllData();
   }, [fetchAllData]);
 
@@ -399,7 +398,7 @@ export default function GroupPage() {
         timelogs,
         sprints,
         mergeRequests,
-        loaded: true,
+        loaded: Object.keys(lastFetchedAt).length > 0,
         groupId: groupIdStr,
         lastFetchedAt,
         refreshData,
@@ -415,6 +414,27 @@ export default function GroupPage() {
           gap: 4,
         }}
       >
+        {isLoading && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              alignItems: "center",
+              py: 8,
+            }}
+          >
+            <Box sx={{ width: "60%", maxWidth: 400 }}>
+              <LinearProgress />
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              Loading group dashboard…
+            </Typography>
+          </Box>
+        )}
+        {dataError && <Alert severity="error">{dataError}</Alert>}
+        {!isLoading && !dataError && (
+          <>
         {/* Sticky Global Cycle Selector Bar */}
         {!presentationMode && (
           <Box
@@ -440,7 +460,7 @@ export default function GroupPage() {
                 sx={{ mb: 0.5 }}
               >
                 <Typography
-                  component={NextLink}
+                  component="a"
                   href="/"
                   variant="caption"
                   color="text.secondary"
@@ -451,8 +471,11 @@ export default function GroupPage() {
                 {breadcrumbAncestors.map((ancestor) => (
                   <Typography
                     key={ancestor.id}
-                    component={NextLink}
-                    href={`/${ancestor.id}`}
+                    component="a"
+                    href={groupRouteHref(ancestor.id)}
+                    onClick={(event) =>
+                      handleGroupRouteClick(event, ancestor.id)
+                    }
                     variant="caption"
                     color="text.secondary"
                     sx={{ textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
@@ -573,8 +596,11 @@ export default function GroupPage() {
 
             {parentGroup ? (
               <Chip
-                component={NextLink}
-                href={`/${parentGroup.id}`}
+                component="a"
+                href={groupRouteHref(parentGroup.id)}
+                onClick={(event) =>
+                  handleGroupRouteClick(event, parentGroup.id)
+                }
                 label={`← ${parentGroup.name} (Overview)`}
                 size="small"
                 variant="outlined"
@@ -596,8 +622,9 @@ export default function GroupPage() {
               return (
                 <Chip
                   key={sub.id}
-                  component={NextLink}
-                  href={`/${sub.id}`}
+                  component="a"
+                  href={groupRouteHref(sub.id)}
+                  onClick={(event) => handleGroupRouteClick(event, sub.id)}
                   label={sub.name}
                   size="small"
                   color={isCurrent ? "primary" : "default"}
@@ -1388,6 +1415,8 @@ export default function GroupPage() {
               </Box>
             )}
           </Box>
+        )}
+          </>
         )}
       </Box>
       <StaleIndicator />

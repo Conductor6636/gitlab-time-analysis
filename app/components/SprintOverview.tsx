@@ -24,16 +24,17 @@ import {
   useTheme,
   Chip,
 } from "@mui/material";
-import { GroupTimelogsResponse } from "../api/group/types";
+import type { GroupTimelogsResponse } from "../types/group";
 import { matchLabelToCategory } from "../utils/categoryUtils";
 import { CATEGORY_DEFINITIONS } from "../config/categories";
 import Label from "./Label";
 import { UserAvatar } from "./UserAvatar";
-import ShareIcon from "@mui/icons-material/Share";
+import DownloadIcon from "@mui/icons-material/Download";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import IssueDetailModal from "./IssueDetailModal";
 import MergeRequestDetailModal from "./MergeRequestDetailModal";
 import { useUserProfile } from "../UserProfileContext";
+import { createSprintOverviewSvg } from "../utils/sprintSvg";
 
 
 export default function SprintOverview() {
@@ -137,6 +138,38 @@ export default function SprintOverview() {
 
   const visibleColumns = categoryColumns;
 
+  const handleDownloadSvg = () => {
+    if (selectedSprint === null) return;
+
+    const rows = Object.keys(tableData).map((memberId) => ({
+      name: members.find((member) => member.id === memberId)?.name || memberId,
+      seconds: visibleColumns.map(
+        (column) => tableData[memberId][column.id] || 0,
+      ),
+    }));
+    const sprintLabel =
+      selectedSprint === 1000
+        ? "All timelogs"
+        : selectedSprint >= 10000
+          ? `Year ${selectedSprint - 10000}`
+          : `Sprint ${selectedSprint}`;
+    const svg = createSprintOverviewSvg(
+      `${groupId} - ${sprintLabel}`,
+      visibleColumns,
+      rows,
+    );
+    const url = URL.createObjectURL(
+      new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
+    );
+    const svgWindow = window.open(url, "_blank");
+    if (!svgWindow) {
+      URL.revokeObjectURL(url);
+      window.alert("Allow pop-ups to open the sprint overview SVG in a new tab.");
+      return;
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
   const sprintIssues = React.useMemo(() => {
     if (selectedSprint === null) return {};
     if (selectedSprint === 1000) {
@@ -205,10 +238,12 @@ export default function SprintOverview() {
            {!isMobile && (
              <IconButton
                size="small"
-               href={`/api/group/${groupId}/table.svg?sprintNumber=${selectedSprint}`}
-               aria-label="Link to SVG"
+               onClick={handleDownloadSvg}
+               disabled={selectedSprint === null}
+               aria-label="Open sprint overview as SVG in a new tab"
+               title="Open sprint overview as SVG in a new tab"
              >
-               <ShareIcon />
+               <DownloadIcon />
              </IconButton>
            )}
 

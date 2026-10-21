@@ -15,8 +15,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-import { APP_URL, GITLAB_DOMAIN } from "./api/env";
-
 const title = "GitLab DHBW-SE Time Analysis Tool";
 const description =
   "A tool to analyze time tracking data from GitLab for DHBW-SE students.";
@@ -24,24 +22,9 @@ const description =
 import { ThemeModeProvider } from "./ThemeContext";
 import { UserProfileProvider } from "./UserProfileContext";
 
-const baseUrl = APP_URL || `https://${GITLAB_DOMAIN || "gitlab.com"}`;
-
 export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl),
   title,
   description,
-  openGraph: {
-    title,
-    description,
-    type: "website",
-    images: [{ url: "/api/og", width: 1200, height: 630 }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title,
-    description,
-    images: ["/api/og"],
-  },
 };
 
 export default function RootLayout({
@@ -67,4 +50,3 @@ export default function RootLayout({
     </html>
   );
 }
-

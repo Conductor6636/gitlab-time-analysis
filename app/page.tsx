@@ -12,7 +12,6 @@ import {
   Collapse,
   IconButton,
   LinearProgress,
-  Link,
   Table,
   TableBody,
   TableCell,
@@ -27,13 +26,19 @@ import {
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import NextLink from "next/link";
-import { useRouter } from "next/navigation";
 import { CATEGORY_DEFINITIONS } from "./config/categories";
 import { UserLeaderboard } from "./components/UserLeaderboard";
+import GroupDashboard from "./components/GroupDashboard";
 import { useUserAuth } from "./UserAuthContext";
-import type { GroupComparisonResponse, GroupComparisonItem } from "./api/groups/comparison/route";
+import type { GroupComparisonResponse, GroupComparisonItem } from "./types/analytics";
 import { useThemeMode } from "./ThemeContext";
+import { loadGroupComparison } from "./gitlab/client";
+import {
+  groupRouteHref,
+  handleGroupRouteClick,
+  navigateToGroup,
+  useClientGroupRoute,
+} from "./ClientRoute";
 // Fixed color palette for categories
 const PALETTE = [
   "#8884d8",
@@ -400,8 +405,6 @@ function ComparisonTable({ data }: { data: GroupComparisonItem[] }) {
   // data contains top-level groups; calculate maxTotalHours across all groups including subgroups for consistent scale
   const allGroups = data.flatMap((g) => [g, ...(g.subgroups || [])]);
   const maxTotalHours = Math.max(...allGroups.map((g) => g.totalHours), 0);
-  const router = useRouter();
-
   // Expanded state for tree rows
   const [expandedGroups, setExpandedGroups] = React.useState<Record<string, boolean>>({});
 
@@ -471,7 +474,7 @@ function ComparisonTable({ data }: { data: GroupComparisonItem[] }) {
             return (
               <React.Fragment key={group.id}>
                 <TableRow
-                  onClick={() => router.push(`/${group.id}`)}
+                  onClick={() => navigateToGroup(group.id)}
                   sx={{
                     cursor: "pointer",
                     "&:hover": { backgroundColor: "rgba(255,255,255,0.04)" },
@@ -578,7 +581,7 @@ function ComparisonTable({ data }: { data: GroupComparisonItem[] }) {
                   group.subgroups!.map((sub) => (
                     <TableRow
                       key={sub.id}
-                      onClick={() => router.push(`/${sub.id}`)}
+                      onClick={() => navigateToGroup(sub.id)}
                       sx={{
                         cursor: "pointer",
                         bgcolor: "rgba(124, 58, 237, 0.04)",
@@ -733,8 +736,9 @@ function ComparisonCards({ data }: { data: GroupComparisonItem[] }) {
           >
             <CardContent>
               <Box
-                component={NextLink}
-                href={`/${group.id}`}
+                component="a"
+                href={groupRouteHref(group.id)}
+                onClick={(event) => handleGroupRouteClick(event, group.id)}
                 sx={{ textDecoration: "none", color: "inherit", display: "block" }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
@@ -864,8 +868,9 @@ function ComparisonCards({ data }: { data: GroupComparisonItem[] }) {
                       {group.subgroups!.map((sub) => (
                         <Card
                           key={sub.id}
-                          component={NextLink}
-                          href={`/${sub.id}`}
+                          component="a"
+                          href={groupRouteHref(sub.id)}
+                          onClick={(event) => handleGroupRouteClick(event, sub.id)}
                           sx={{
                             textDecoration: "none",
                             bgcolor: "rgba(124, 58, 237, 0.05)",
@@ -922,7 +927,7 @@ function ComparisonCards({ data }: { data: GroupComparisonItem[] }) {
   );
 }
 
-export default function Home() {
+function GroupComparisonPage() {
   const [data, setData] = React.useState<GroupComparisonResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -934,16 +939,18 @@ export default function Home() {
     if (authLoading) return;
     let cancelled = false;
     const fetchData = async () => {
+      setData(null);
+      setLoading(true);
+      if (!token) {
+        setError("Sign in with GitLab to load group analytics.");
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-        const res = await fetch("/api/groups/comparison", { headers });
-        if (!res.ok) throw new Error(`Failed to load: ${res.statusText}`);
-        const json = await res.json();
-        if (!cancelled) setData(json);
+        setError(null);
+        const result = await loadGroupComparison(token);
+        if (!cancelled) setData(result);
       } catch (err) {
         if (!cancelled)
           setError(err instanceof Error ? err.message : "Unknown error");
@@ -1005,7 +1012,7 @@ export default function Home() {
       {data && groups.length === 0 && (
         <Card sx={{ p: 4, textAlign: "center" }}>
           <Typography color="text.secondary">
-            No groups found. Check your GITLAB_GROUP_PATH configuration.
+            No groups found. Check your NEXT_PUBLIC_GITLAB_GROUP_PATH configuration.
           </Typography>
         </Card>
       )}
@@ -1055,5 +1062,14 @@ export default function Home() {
         </>
       )}
     </Box>
+  );
+}
+
+export default function Home() {
+  const groupId = useClientGroupRoute();
+  return groupId ? (
+    <GroupDashboard key={groupId} groupId={groupId} />
+  ) : (
+    <GroupComparisonPage />
   );
 }

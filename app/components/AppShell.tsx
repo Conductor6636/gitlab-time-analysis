@@ -36,24 +36,26 @@ import {
   SettingsBrightness,
   Tv as TvIcon,
 } from "@mui/icons-material";
-import { useRouter, useParams, usePathname } from "next/navigation";
-import Link from "next/link";
 import { useUserAuth } from "../UserAuthContext";
 import { useThemeMode } from "../ThemeContext";
 import { useUserProfile } from "../UserProfileContext";
 import SettingsDialog from "./SettingsDialog";
 import UserDetailModal from "./UserDetailModal";
-import { GroupResponse } from "../api/groups/route";
+import type { GroupResponse } from "../types/analytics";
+import { getGroups } from "../gitlab/client";
+import {
+  groupRouteHref,
+  handleGroupRouteClick,
+  useClientGroupRoute,
+} from "../ClientRoute";
 
 const drawerWidth = 260;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const router = useRouter();
-  const pathname = usePathname();
-  const { groupId } = useParams();
-  const currentGroupId = Array.isArray(groupId) ? groupId.join("/") : (groupId?.toString() || "");
+  const currentGroupId = useClientGroupRoute() || "";
+  const isHome = !currentGroupId;
   const { user, logout, token, loading } = useUserAuth();
   const { themeMode, setThemeMode, presentationMode, setPresentationMode } = useThemeMode();
   const { openProfile, profileUsername, closeProfile } = useUserProfile();
@@ -95,18 +97,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Fetch groups list for sidebar navigation
   useEffect(() => {
     if (loading) return; // Wait until authentication state is loaded
+    if (!token) {
+      setGroups([]);
+      setGroupsLoading(false);
+      return;
+    }
     const fetchGroups = async () => {
       setGroupsLoading(true);
       try {
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-        const res = await fetch("/api/groups", { headers });
-        if (res.ok) {
-          const data = await res.json();
-          setGroups(data);
-        }
+        const { data } = await getGroups(token);
+        setGroups(data);
       } catch (err) {
         console.error("Failed to load groups in sidebar:", err);
       } finally {
@@ -173,9 +173,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {collapsed ? (
             <Tooltip title="Group Comparison" placement="right" arrow>
               <ListItemButton
-                component={Link}
+                component="a"
                 href="/"
-                selected={pathname === "/"}
+                selected={isHome}
                 sx={{
                   borderRadius: 2,
                   mb: 0.5,
@@ -188,15 +188,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 <ListItemIcon sx={{ minWidth: "auto", justifyContent: "center" }}>
-                  <Dashboard sx={{ color: pathname === "/" ? "primary.contrastText" : "text.secondary" }} />
+                  <Dashboard sx={{ color: isHome ? "primary.contrastText" : "text.secondary" }} />
                 </ListItemIcon>
               </ListItemButton>
             </Tooltip>
           ) : (
             <ListItemButton
-              component={Link}
+              component="a"
               href="/"
-              selected={pathname === "/"}
+              selected={isHome}
               sx={{
                 borderRadius: 2,
                 mb: 0.5,
@@ -207,9 +207,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               }}
             >
               <ListItemIcon>
-                <Dashboard sx={{ color: pathname === "/" ? "primary.contrastText" : "text.secondary" }} />
+                <Dashboard sx={{ color: isHome ? "primary.contrastText" : "text.secondary" }} />
               </ListItemIcon>
-              <ListItemText primary="Group Comparison" primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: pathname === "/" ? 600 : 500 }} />
+              <ListItemText primary="Group Comparison" primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: isHome ? 600 : 500 }} />
             </ListItemButton>
           )}
         </ListItem>
@@ -236,8 +236,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
               const groupItem = (
                 <ListItemButton
-                  component={Link}
-                  href={`/${group.id}`}
+                  component="a"
+                  href={groupRouteHref(group.id)}
+                  onClick={(event) => handleGroupRouteClick(event, group.id)}
                   selected={isSelected}
                   sx={{
                     borderRadius: 2,
@@ -304,8 +305,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       return (
                         <ListItem key={sub.id} disablePadding sx={{ pl: 3 }}>
                           <ListItemButton
-                            component={Link}
-                            href={`/${sub.id}`}
+                            component="a"
+                            href={groupRouteHref(sub.id)}
+                            onClick={(event) => handleGroupRouteClick(event, sub.id)}
                             selected={isSubSelected}
                             sx={{
                               borderRadius: 1.5,
@@ -429,7 +431,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <MenuIcon />
               </IconButton>
               <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600, display: { xs: "none", sm: "block" } }}>
-                {pathname === "/" ? "Dashboard Home" : `Active Group: ${groupId || ""}`}
+                {isHome ? "Dashboard Home" : `Active Group: ${currentGroupId}`}
               </Typography>
             </Box>
 

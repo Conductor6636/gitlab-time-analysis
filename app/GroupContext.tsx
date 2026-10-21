@@ -1,10 +1,10 @@
 import React from "react";
-import {
+import type {
   GroupMembersResponse,
   GroupLabelsResponse,
   GroupTimelogsResponse,
   GroupSprintsResponse,
-} from "./api/group/types";
+} from "./types/group";
 import { GamificationMergeRequest } from "./utils/gamification";
 
 export type GroupContextType = {
