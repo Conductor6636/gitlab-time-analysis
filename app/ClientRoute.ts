@@ -4,17 +4,30 @@ import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
 
 const GROUP_ROUTE_PREFIX = "/group/";
+const APP_BASE_PATH = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(
+  /\/$/,
+  "",
+);
 
 export function groupRouteHref(groupId: string) {
-  return `${GROUP_ROUTE_PREFIX}${groupId
+  return `${APP_BASE_PATH}${GROUP_ROUTE_PREFIX}${groupId
     .split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/")}`;
 }
 
+export function homeRouteHref() {
+  return `${APP_BASE_PATH}/`;
+}
+
 function getGroupIdFromPathname(pathname: string) {
-  if (!pathname.startsWith(GROUP_ROUTE_PREFIX)) return null;
-  const segments = pathname
+  const appPath = APP_BASE_PATH
+    ? pathname.startsWith(`${APP_BASE_PATH}/`) || pathname === APP_BASE_PATH
+      ? pathname.slice(APP_BASE_PATH.length)
+      : null
+    : pathname;
+  if (!appPath?.startsWith(GROUP_ROUTE_PREFIX)) return null;
+  const segments = appPath
     .slice(GROUP_ROUTE_PREFIX.length)
     .split("/")
     .filter(Boolean);
@@ -71,6 +84,6 @@ export function handleGroupRouteClick(
 }
 
 export function navigateHome() {
-  window.history.pushState(null, "", "/");
+  window.history.pushState(null, "", homeRouteHref());
   window.dispatchEvent(new Event("client-group-route-change"));
 }

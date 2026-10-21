@@ -1,53 +1,54 @@
 "use client";
-import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Drawer,
+  AutoGraph,
+  ChevronLeft,
+  ChevronRight,
+  DarkMode,
+  Dashboard,
+  Group,
+  LightMode,
+  Login,
+  Logout,
+  Menu as MenuIcon,
+  Settings,
+  SettingsBrightness,
+  Tv as TvIcon,
+} from "@mui/icons-material";
+import {
   AppBar,
-  Toolbar,
-  Typography,
+  Avatar,
+  Box,
+  Button,
+  Divider,
+  Drawer,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Avatar,
   Menu,
   MenuItem,
-  Button,
-  IconButton,
-  Divider,
+  Toolbar,
+  Tooltip,
+  Typography,
   useMediaQuery,
   useTheme,
-  Tooltip,
 } from "@mui/material";
-import {
-  Menu as MenuIcon,
-  Dashboard,
-  Settings,
-  Logout,
-  Group,
-  ChevronLeft,
-  ChevronRight,
-  AutoGraph,
-  Login,
-  LightMode,
-  DarkMode,
-  SettingsBrightness,
-  Tv as TvIcon,
-} from "@mui/icons-material";
-import { useUserAuth } from "../UserAuthContext";
-import { useThemeMode } from "../ThemeContext";
-import { useUserProfile } from "../UserProfileContext";
-import SettingsDialog from "./SettingsDialog";
-import UserDetailModal from "./UserDetailModal";
-import type { GroupResponse } from "../types/analytics";
-import { getGroups } from "../gitlab/client";
+import React, { useEffect, useState } from "react";
 import {
   groupRouteHref,
   handleGroupRouteClick,
+  homeRouteHref,
   useClientGroupRoute,
 } from "../ClientRoute";
+import { getGroups } from "../gitlab/client";
+import { useThemeMode } from "../ThemeContext";
+import type { GroupResponse } from "../types/analytics";
+import { useUserAuth } from "../UserAuthContext";
+import { useUserProfile } from "../UserProfileContext";
+import SettingsDialog from "./SettingsDialog";
+import UserDetailModal from "./UserDetailModal";
 
 const drawerWidth = 260;
 
@@ -57,7 +58,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const currentGroupId = useClientGroupRoute() || "";
   const isHome = !currentGroupId;
   const { user, logout, token, loading } = useUserAuth();
-  const { themeMode, setThemeMode, presentationMode, setPresentationMode } = useThemeMode();
+  const { themeMode, setThemeMode, presentationMode, setPresentationMode } =
+    useThemeMode();
   const { openProfile, profileUsername, closeProfile } = useUserProfile();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -135,13 +137,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       setPresentationMode(!!document.fullscreenElement);
     };
     document.addEventListener("fullscreenchange", handleFullscreen);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreen);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullscreen);
   }, [setPresentationMode]);
 
-  const currentDrawerWidth = presentationMode ? 0 : (collapsed ? 72 : 260);
+  const currentDrawerWidth = presentationMode ? 0 : collapsed ? 72 : 260;
 
   const sidebarContent = (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: "var(--background-sidebar)", transition: "background-color 0.2s ease, border-color 0.2s ease" }}>
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "var(--background-sidebar)",
+        transition: "background-color 0.2s ease, border-color 0.2s ease",
+      }}
+    >
       <Box
         sx={{
           display: "flex",
@@ -155,26 +166,37 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {!collapsed && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <AutoGraph color="primary" sx={{ fontSize: 28 }} />
-            <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary", fontSize: "1.1rem" }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 800,
+                color: "text.primary",
+                fontSize: "1.1rem",
+              }}
+            >
               GitLab Analytics
             </Typography>
           </Box>
         )}
         {collapsed && <AutoGraph color="primary" sx={{ fontSize: 28 }} />}
         {!isMobile && (
-          <IconButton onClick={() => handleSidebarCollapse(!collapsed)} size="small" sx={{ color: "text.secondary" }}>
+          <IconButton
+            onClick={() => handleSidebarCollapse(!collapsed)}
+            size="small"
+            sx={{ color: "text.secondary" }}
+          >
             {collapsed ? <ChevronRight /> : <ChevronLeft />}
           </IconButton>
         )}
       </Box>
-      
+
       <List sx={{ px: 1.5, py: 2 }}>
         <ListItem disablePadding>
           {collapsed ? (
             <Tooltip title="Group Comparison" placement="right" arrow>
               <ListItemButton
                 component="a"
-                href="/"
+                href={homeRouteHref()}
                 selected={isHome}
                 sx={{
                   borderRadius: 2,
@@ -187,15 +209,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: "auto", justifyContent: "center" }}>
-                  <Dashboard sx={{ color: isHome ? "primary.contrastText" : "text.secondary" }} />
+                <ListItemIcon
+                  sx={{ minWidth: "auto", justifyContent: "center" }}
+                >
+                  <Dashboard
+                    sx={{
+                      color: isHome ? "primary.contrastText" : "text.secondary",
+                    }}
+                  />
                 </ListItemIcon>
               </ListItemButton>
             </Tooltip>
           ) : (
             <ListItemButton
               component="a"
-              href="/"
+              href={homeRouteHref()}
               selected={isHome}
               sx={{
                 borderRadius: 2,
@@ -207,9 +235,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               }}
             >
               <ListItemIcon>
-                <Dashboard sx={{ color: isHome ? "primary.contrastText" : "text.secondary" }} />
+                <Dashboard
+                  sx={{
+                    color: isHome ? "primary.contrastText" : "text.secondary",
+                  }}
+                />
               </ListItemIcon>
-              <ListItemText primary="Group Comparison" primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: isHome ? 600 : 500 }} />
+              <ListItemText
+                primary="Group Comparison"
+                primaryTypographyProps={{
+                  fontSize: "0.9rem",
+                  fontWeight: isHome ? 600 : 500,
+                }}
+              />
             </ListItemButton>
           )}
         </ListItem>
@@ -219,20 +257,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {!collapsed && (
         <Box sx={{ px: 3, pt: 2, pb: 1 }}>
-          <Typography variant="caption" sx={{ textTransform: "uppercase", fontWeight: 700, color: "text.secondary", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
+          <Typography
+            variant="caption"
+            sx={{
+              textTransform: "uppercase",
+              fontWeight: 700,
+              color: "text.secondary",
+              fontSize: "0.7rem",
+              letterSpacing: "0.05em",
+            }}
+          >
             Your Groups
           </Typography>
         </Box>
       )}
 
-      <Box sx={{ flexGrow: 1, overflowY: "auto", px: 1.5, py: collapsed ? 2 : 0 }}>
+      <Box
+        sx={{ flexGrow: 1, overflowY: "auto", px: 1.5, py: collapsed ? 2 : 0 }}
+      >
         <List>
           {(() => {
-            const topLevelGroups = groups.filter((g) => !g.parentId || g.level === 1);
+            const topLevelGroups = groups.filter(
+              (g) => !g.parentId || g.level === 1,
+            );
             return topLevelGroups.map((group) => {
               const isSelected = currentGroupId === group.id;
               const initials = group.name.slice(0, 2).toUpperCase();
-              const childSubgroups = groups.filter((g) => g.parentId === group.id);
+              const childSubgroups = groups.filter(
+                (g) => g.parentId === group.id,
+              );
 
               const groupItem = (
                 <ListItemButton
@@ -254,7 +307,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: collapsed ? "auto" : 36, justifyContent: "center" }}>
+                  <ListItemIcon
+                    sx={{
+                      minWidth: collapsed ? "auto" : 36,
+                      justifyContent: "center",
+                    }}
+                  >
                     {collapsed ? (
                       <Avatar
                         sx={{
@@ -262,15 +320,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                           height: 28,
                           fontSize: "0.75rem",
                           fontWeight: 700,
-                          bgcolor: isSelected ? "primary.main" : "rgba(124, 58, 237, 0.15)",
-                          color: isSelected ? "primary.contrastText" : "primary.main",
-                          border: isSelected ? "none" : "1px solid rgba(124, 58, 237, 0.2)",
+                          bgcolor: isSelected
+                            ? "primary.main"
+                            : "rgba(124, 58, 237, 0.15)",
+                          color: isSelected
+                            ? "primary.contrastText"
+                            : "primary.main",
+                          border: isSelected
+                            ? "none"
+                            : "1px solid rgba(124, 58, 237, 0.2)",
                         }}
                       >
                         {initials}
                       </Avatar>
                     ) : (
-                      <Group sx={{ fontSize: 20, color: isSelected ? "primary.light" : "text.secondary" }} />
+                      <Group
+                        sx={{
+                          fontSize: 20,
+                          color: isSelected
+                            ? "primary.light"
+                            : "text.secondary",
+                        }}
+                      />
                     )}
                   </ListItemIcon>
                   {!collapsed && (
@@ -307,7 +378,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                           <ListItemButton
                             component="a"
                             href={groupRouteHref(sub.id)}
-                            onClick={(event) => handleGroupRouteClick(event, sub.id)}
+                            onClick={(event) =>
+                              handleGroupRouteClick(event, sub.id)
+                            }
                             selected={isSubSelected}
                             sx={{
                               borderRadius: 1.5,
@@ -318,7 +391,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               "&.Mui-selected": {
                                 bgcolor: "rgba(124, 58, 237, 0.12)",
                                 color: "primary.light",
-                                "&:hover": { bgcolor: "rgba(124, 58, 237, 0.18)" },
+                                "&:hover": {
+                                  bgcolor: "rgba(124, 58, 237, 0.18)",
+                                },
                               },
                             }}
                           >
@@ -326,7 +401,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               variant="caption"
                               sx={{
                                 mr: 1,
-                                color: isSubSelected ? "primary.light" : "text.secondary",
+                                color: isSubSelected
+                                  ? "primary.light"
+                                  : "text.secondary",
                                 fontWeight: 700,
                               }}
                             >
@@ -349,7 +426,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             });
           })()}
           {groups.length === 0 && !groupsLoading && !collapsed && (
-            <Typography variant="body2" sx={{ px: 2, py: 1, color: "text.secondary", fontStyle: "italic", fontSize: "0.8rem" }}>
+            <Typography
+              variant="body2"
+              sx={{
+                px: 2,
+                py: 1,
+                color: "text.secondary",
+                fontStyle: "italic",
+                fontSize: "0.8rem",
+              }}
+            >
               No groups found
             </Typography>
           )}
@@ -401,7 +487,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "var(--background-default)", transition: "background-color 0.2s ease" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "var(--background-default)",
+        transition: "background-color 0.2s ease",
+      }}
+    >
       {/* Header Bar */}
       {!presentationMode && (
         <AppBar
@@ -413,7 +506,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
             }),
-            bgcolor: theme.palette.mode === "dark" ? "rgba(9, 13, 22, 0.7)" : "rgba(255, 255, 255, 0.7)",
+            bgcolor:
+              theme.palette.mode === "dark"
+                ? "rgba(9, 13, 22, 0.7)"
+                : "rgba(255, 255, 255, 0.7)",
             backdropFilter: "blur(12px)",
             backgroundImage: "none",
             borderBottom: "1px solid var(--border-color)",
@@ -430,7 +526,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <MenuIcon />
               </IconButton>
-              <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600, display: { xs: "none", sm: "block" } }}>
+              <Typography
+                variant="subtitle1"
+                noWrap
+                sx={{ fontWeight: 600, display: { xs: "none", sm: "block" } }}
+              >
                 {isHome ? "Dashboard Home" : `Active Group: ${currentGroupId}`}
               </Typography>
             </Box>
@@ -455,7 +555,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   {themeMode === "light" && <LightMode sx={{ fontSize: 20 }} />}
                   {themeMode === "dark" && <DarkMode sx={{ fontSize: 20 }} />}
-                  {themeMode === "system" && <SettingsBrightness sx={{ fontSize: 20 }} />}
+                  {themeMode === "system" && (
+                    <SettingsBrightness sx={{ fontSize: 20 }} />
+                  )}
                 </IconButton>
               </Tooltip>
 
@@ -497,22 +599,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 transformOrigin={{ horizontal: "right", vertical: "top" }}
                 anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
               >
-                <MenuItem 
-                  onClick={() => { setThemeMode("light"); setThemeAnchorEl(null); }}
+                <MenuItem
+                  onClick={() => {
+                    setThemeMode("light");
+                    setThemeAnchorEl(null);
+                  }}
                   selected={themeMode === "light"}
                   sx={{ gap: 1.5, fontSize: "0.85rem" }}
                 >
                   <LightMode fontSize="small" /> Light
                 </MenuItem>
-                <MenuItem 
-                  onClick={() => { setThemeMode("dark"); setThemeAnchorEl(null); }}
+                <MenuItem
+                  onClick={() => {
+                    setThemeMode("dark");
+                    setThemeAnchorEl(null);
+                  }}
                   selected={themeMode === "dark"}
                   sx={{ gap: 1.5, fontSize: "0.85rem" }}
                 >
                   <DarkMode fontSize="small" /> Dark
                 </MenuItem>
-                <MenuItem 
-                  onClick={() => { setThemeMode("system"); setThemeAnchorEl(null); }}
+                <MenuItem
+                  onClick={() => {
+                    setThemeMode("system");
+                    setThemeAnchorEl(null);
+                  }}
                   selected={themeMode === "system"}
                   sx={{ gap: 1.5, fontSize: "0.85rem" }}
                 >
@@ -558,7 +669,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
                   >
                     <Box sx={{ px: 2, py: 1.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ fontWeight: 700 }}
+                        noWrap
+                      >
                         {user.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap>
@@ -566,7 +681,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       </Typography>
                     </Box>
                     <Divider />
-                    <MenuItem component="a" href={user.webUrl} target="_blank" rel="noopener noreferrer">
+                    <MenuItem
+                      component="a"
+                      href={user.webUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       GitLab Profile
                     </MenuItem>
                     <MenuItem onClick={() => openProfile(user.username)}>
@@ -610,7 +730,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           }}
           sx={{
             display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+            },
           }}
         >
           {sidebarContent}
@@ -664,7 +787,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </Box>
 
       {/* Settings Dialog */}
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
 
       {/* Global User Detail Modal */}
       {profileUsername && (

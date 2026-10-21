@@ -6,7 +6,7 @@ import { clearGitLabClientCache } from "./gitlab/client";
 const GITLAB_URL = (
   process.env.NEXT_PUBLIC_GITLAB_DOMAIN || "https://gitlab.com"
 ).replace(/\/$/, "");
-const OAUTH_CALLBACK_PATH = "/oauth/callback";
+const OAUTH_CALLBACK_PATH = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/oauth/callback`;
 const OAUTH_SCOPE = "api";
 const TOKEN_STORAGE_KEY = "gitlab_oauth_token";
 const REFRESH_TOKEN_STORAGE_KEY = "gitlab_oauth_refresh_token";
